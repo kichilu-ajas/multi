@@ -1,0 +1,46 @@
+pipeline {
+    agent any
+
+
+    stages {
+        stage('cred_valid') {
+            steps {
+                git credentialsId: 'my1', url: 'git@github.com:kichilu-ajas/springapp_jenkins.git'
+            }
+
+            
+        }
+        stage('mvn_build') {
+            steps {
+                sh 'mvn -Dmaven.test.failure.ignore=true clean package'
+            }
+        }
+        stage('unit_test') {
+            steps {
+                sh 'mvn test'
+                junit '**/target/surefire-reports/*.xml'
+            }
+        }
+        stage('check_style') {
+            steps {
+                sh 'mvn checkstyle:checkstyle'
+                recordIssues(tools: [checkStyle(pattern: '**/checkstyle-result.xml')])
+            }
+        }
+         stage('sonar_test') {
+            steps {
+                sh 'mvn clean verify sonar:sonar \
+  -Dsonar.projectKey=springapp_aj \
+  -Dsonar.host.url=http://44.238.89.248:9000 \
+  -Dsonar.login=sqp_ad449335259e3f111fe0a5407b83893d6990400e'
+                
+            }
+        }
+        stage('nexus_upload') {
+            steps {
+                nexusArtifactUploader artifacts: [[artifactId: 'websocket-demo', classifier: '', file: 'target/websocket-demo-0.0.1-SNAPSHOT.jar', type: 'jar']], credentialsId: 'nexus-cred', groupId: 'websocket-demo', nexusUrl: '100.20.226.239:8081', nexusVersion: 'nexus3', protocol: 'http', repository: 'maven-snapshots', version: '0.0.1-SNAPSHOT'
+            }
+        }
+    }
+}
+
